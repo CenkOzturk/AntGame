@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kroq.antsurvivalgame.data.GameSession
 import com.kroq.antsurvivalgame.model.AntType
 import com.kroq.antsurvivalgame.ui.AntView
 import com.kroq.antsurvivalgame.ui.upgrade.UpgradePopup
@@ -103,7 +104,7 @@ fun GameScreen(
     if (showUpgradePopup) {
         UpgradePopup(
             onUpgradeSelected = { selected ->
-                viewModel.addUpgrade(selected)
+                GameSession.addUpgrade(selected) // 🔥 EKLEDİK
                 Utils.ToastUtil.show(selected.name)
                 showUpgradePopup = false
             }

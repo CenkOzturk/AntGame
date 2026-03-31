@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.kroq.antsurvivalgame.data.GameSession
 import com.kroq.antsurvivalgame.data.LEVELS
 import com.kroq.antsurvivalgame.model.Ant
 import com.kroq.antsurvivalgame.model.AntType
@@ -12,9 +12,6 @@ import com.kroq.antsurvivalgame.model.ClickResult
 import com.kroq.antsurvivalgame.utils.GameConfig
 import com.kroq.antsurvivalgame.utils.LevelRegistry
 import com.kroq.antsurvivalgame.utils.SoundManager
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -38,9 +35,6 @@ class GameViewModel : ViewModel() {
         private set
 
     private var nextAntId = 0
-    private var workerSpawnJob: Job? = null
-
-    var chainLevel = 0
 
     fun init(screenWidth: Float, screenHeight: Float) {
         ants = List(GameConfig.INITIAL_ANT_COUNT) {
@@ -66,26 +60,44 @@ class GameViewModel : ViewModel() {
             hypot(x - ant.x, y - ant.y) <= ant.type.radius
         } ?: return
 
-        val result = handleAntClick(
+        val extraKills = GameSession.upgradeManager.onAntKilled(clickedAnt, ants)
+
+        val killQueue = (listOf(clickedAnt) + extraKills)
+            .distinctBy { it.id }
+
+        var currentAnts = ants
+        var totalScore = 0
+
+        killQueue.forEach { antToKill ->
+
+            val result = handleAntClick(
+                ants = currentAnts,
+                clicked = antToKill,
+                screenWidth = screenWidth,
+                screenHeight = screenHeight,
+                nextId = { nextAntId++ }
+            )
+
+            currentAnts = result.ants
+            totalScore += result.gainedScore
+        }
+
+        ants = currentAnts
+        score += totalScore
+
+        controlScoreForLevel()
+
+        /*val result = handleAntClick(
             ants = ants,
             clicked = clickedAnt,
-            //hasQueen = hasQueen,
             screenWidth = screenWidth,
             screenHeight = screenHeight,
-            maxWorkers = GameConfig.MAX_WORKERS,
             nextId = { nextAntId++ }
         )
         ants = result.ants
 
         score += result.gainedScore
-        controlScoreForLevel()
-
-        /*hasQueen = result.hasQueen
-        if (hasQueen) {
-            startQueenWorkerSpawn(screenWidth, screenHeight)
-        } else {
-            stopQueenWorkerSpawn()
-        }*/
+        controlScoreForLevel()*/
     }
 
     fun moveAnt(
@@ -193,16 +205,11 @@ class GameViewModel : ViewModel() {
     fun handleAntClick(
         ants: List<Ant>,
         clicked: Ant,
-        //hasQueen: Boolean,
         screenWidth: Float,
         screenHeight: Float,
-        maxWorkers: Int,
         nextId: () -> Int
     ): ClickResult {
         val updatedHealth = clicked.hp - 1
-        //var newHasQueen = hasQueen
-
-        val workerCount = ants.count { it.type == AntType.WORKER }
 
         // 🟡 ANT HÂLÂ YAŞIYORSA
         if (updatedHealth > 0) {
@@ -225,57 +232,17 @@ class GameViewModel : ViewModel() {
 
         val remainingAnts = ants.filterNot { it.id == clicked.id }
 
-        val spawnedAnts = when (clicked.type) {
-
-            AntType.WORKER -> {
-                if (currentLevel.soldierEnabled) {
-                    listOf(
-                        createAnt(
-                            id = nextId(),
-                            type = AntType.SOLDIER,
-                            screenWidth,
-                            screenHeight
-                        )
-                    )
-                } else emptyList()
-            }
-
-            AntType.SOLDIER -> {
-                emptyList()
-                /*if (!hasQueen && currentLevel.queenEnabled) {
-                    newHasQueen = true
-                    listOf(
-                        createAnt(
-                            id = nextId(),
-                            type = AntType.QUEEN,
-                            screenWidth,
-                            screenHeight
-                        )
-                    )
-                } else emptyList()*/
-            }
-
-            /*AntType.QUEEN -> {
-                newHasQueen = false
-
-                val availableSlots = maxWorkers - workerCount
-                val spawnCount = min(5, availableSlots)
-
-                List(spawnCount) {
-                    createAnt(
-                        id = nextId(),
-                        type = AntType.WORKER,
-                        screenWidth,
-                        screenHeight
-                    )
-                }
-            }*/
-        }
+        val spawnedAnts =
+            createAnt(
+                id = nextId(),
+                type = AntType.WORKER,
+                screenWidth,
+                screenHeight
+            )
 
         return ClickResult(
             ants = remainingAnts + spawnedAnts,
             gainedScore = gainedScore,
-            //hasQueen = newHasQueen
         )
     }
 
@@ -306,36 +273,6 @@ class GameViewModel : ViewModel() {
         return result
             .filterNot { toRemove.contains(it.id) }
             .map { updatedSoldiers[it.id] ?: it }
-    }
-
-    private fun startQueenWorkerSpawn(
-        screenWidth: Float,
-        screenHeight: Float
-    ) {
-        if (workerSpawnJob != null) return
-
-        workerSpawnJob = viewModelScope.launch {
-            while (true) {
-                delay(GameConfig.WORKER_SPAWN_INTERVAL)
-
-                if (!hasQueen) continue
-
-                val workerCount = ants.count { it.type == AntType.WORKER }
-                if (workerCount >= GameConfig.MAX_WORKERS) continue
-
-                ants = ants + createAnt(
-                    id = nextAntId++,
-                    type = AntType.WORKER,
-                    screenWidth = screenWidth,
-                    screenHeight = screenHeight
-                )
-            }
-        }
-    }
-
-    private fun stopQueenWorkerSpawn() {
-        workerSpawnJob?.cancel()
-        workerSpawnJob = null
     }
 
     fun setCurrentLevel(level: Int) {
