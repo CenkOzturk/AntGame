@@ -1,8 +1,12 @@
 package com.kroq.antsurvivalgame.ui.game
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -14,9 +18,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -38,6 +46,10 @@ fun GameScreen(
     var screenWidth by remember { mutableStateOf(0f) }
     var screenHeight by remember { mutableStateOf(0f) }
     var showUpgradePopup by remember { mutableStateOf(false) }
+    val alpha = remember { Animatable(0f) }
+    val flicker = remember { Animatable(1f) }
+    val shake = remember { Animatable(0f) }
+    val flash = remember { Animatable(0f) }
 
     Box(
         modifier = Modifier
@@ -47,6 +59,12 @@ fun GameScreen(
                 screenWidth = it.width.toFloat()
                 screenHeight = it.height.toFloat()
                 viewModel.init(screenWidth, screenHeight)
+            }
+            .offset {
+                IntOffset(
+                    (Math.random() * shake.value).toInt(),
+                    (Math.random() * shake.value).toInt()
+                )
             }
     ) {
 
@@ -70,6 +88,62 @@ fun GameScreen(
         Button(
             onClick = { showUpgradePopup = true }) {
             Text("Show Upgrade")
+        }
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+
+            viewModel.chainEffect.forEach { (from, to) ->
+
+                val start = Offset(from.x, from.y)
+                val end = Offset(to.x, to.y)
+
+                val paths = viewModel.generateLightning(start, end)
+
+                paths.forEachIndexed { index, points ->
+
+                    val path = Path().apply {
+                        moveTo(points.first().x, points.first().y)
+                        points.drop(1).forEach { lineTo(it.x, it.y) }
+                    }
+
+                    // 🔥 glow
+                    drawPath(
+                        path = path,
+                        color = Color(0xFF00E5FF).copy(alpha = 0.25f),
+                        style = Stroke(width = if (index == 0) 12f else 6f)
+                    )
+
+                    // ⚡ core
+                    drawPath(
+                        path = path,
+                        color = Color.White,
+                        style = Stroke(width = if (index == 0) 4f else 2f)
+                    )
+                }
+
+                // 👇 TAM BURAYA EKLE (pathlerden sonra)
+                // glow
+                drawCircle(
+                    color = Color(0xFF00E5FF).copy(alpha = 0.3f),
+                    radius = 16f,
+                    center = end
+                )
+
+                // core
+                drawCircle(
+                    color = Color.White,
+                    radius = 8f,
+                    center = end
+                )
+            }
+        }
+
+        if (flash.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = flash.value * 0.15f))
+            )
         }
     }
 
@@ -99,6 +173,38 @@ fun GameScreen(
 
     LaunchedEffect(Unit) {
         MusicManager.play()
+    }
+
+    LaunchedEffect(viewModel.chainEffect) {
+        if (viewModel.chainEffect.isNotEmpty()) {
+            alpha.snapTo(1f)
+            alpha.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(200)
+            )
+        }
+    }
+
+    LaunchedEffect(viewModel.chainEffect) {
+        if (viewModel.chainEffect.isNotEmpty()) {
+            repeat(3) {
+                flicker.animateTo(0.6f, tween(40))
+                flicker.animateTo(1f, tween(40))
+            }
+        }
+    }
+
+    LaunchedEffect(viewModel.chainEffect) {
+        shake.snapTo(10f)
+        shake.animateTo(0f, tween(200))
+    }
+
+    LaunchedEffect(viewModel.chainEffect) {
+        if (viewModel.chainEffect.isNotEmpty()) {
+            flash.snapTo(1f)
+            delay(50)
+            flash.animateTo(0f, tween(150))
+        }
     }
 
     if (showUpgradePopup) {

@@ -11,23 +11,28 @@ class ChainHitUpgrade(
     override fun onAntKilled(
         killedAnt: Ant,
         ants: List<Ant>
-    ): List<Ant> {
+    ): ChainResult {
 
-        val result = mutableListOf<Ant>()
+        val killed = mutableListOf<Ant>()
+        val pairs = mutableListOf<Pair<Ant, Ant>>()
+
         var current = killedAnt
 
         repeat(level) {
+
             val next = ants
-                .filter { it !in result && it.id != killedAnt.id }
+                .filter { it !in killed && it.id != killedAnt.id }
                 .minByOrNull { distance(it, current) }
 
             next?.let {
-                result.add(it)
+                killed.add(it)
+                pairs.add(current to it) // 🔥 bağlantı
+
                 current = it
-            } ?: return result
+            } ?: return ChainResult(killed, pairs)
         }
 
-        return result
+        return ChainResult(killed, pairs)
     }
 
     fun levelUp() {

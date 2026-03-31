@@ -30,15 +30,19 @@ class UpgradeManager {
     fun onAntKilled(
         killedAnt: Ant,
         ants: List<Ant>
-    ): List<Ant> {
+    ): ChainResult {
 
-        val extraKills = mutableListOf<Ant>()
+        val allKills = mutableListOf<Ant>()
+        val allPairs = mutableListOf<Pair<Ant, Ant>>()
 
         upgrades.values.forEach { upgrade ->
-            extraKills += upgrade.onAntKilled(killedAnt, ants)
+            val result = upgrade.onAntKilled(killedAnt, ants)
+
+            allKills += result.killedAnts
+            allPairs += result.chainPairs
         }
 
-        return extraKills
+        return ChainResult(allKills, allPairs)
     }
 
     fun hasUpgrade(type: UpgradeType): Boolean {

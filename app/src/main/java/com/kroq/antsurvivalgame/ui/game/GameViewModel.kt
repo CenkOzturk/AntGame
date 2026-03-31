@@ -3,7 +3,10 @@ package com.kroq.antsurvivalgame.ui.game
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.kroq.antsurvivalgame.data.GameSession
 import com.kroq.antsurvivalgame.data.LEVELS
 import com.kroq.antsurvivalgame.model.Ant
@@ -12,6 +15,8 @@ import com.kroq.antsurvivalgame.model.ClickResult
 import com.kroq.antsurvivalgame.utils.GameConfig
 import com.kroq.antsurvivalgame.utils.LevelRegistry
 import com.kroq.antsurvivalgame.utils.SoundManager
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -34,6 +39,10 @@ class GameViewModel : ViewModel() {
     var isLevelDone by mutableStateOf(false)
         private set
 
+    var chainEffect by mutableStateOf<List<Pair<Ant, Ant>>>(emptyList())
+        private set
+
+
     private var nextAntId = 0
 
     fun init(screenWidth: Float, screenHeight: Float) {
@@ -55,20 +64,44 @@ class GameViewModel : ViewModel() {
             .map { moveAnt(it, screenWidth, screenHeight) }
     }
 
-    fun onAntClicked(x: Float, y: Float, screenWidth: Float, screenHeight: Float) {
+    fun onAntClicked(
+        x: Float,
+        y: Float,
+        screenWidth: Float,
+        screenHeight: Float
+    ) {
         val clickedAnt = ants.firstOrNull { ant ->
             hypot(x - ant.x, y - ant.y) <= ant.type.radius
         } ?: return
 
-        val extraKills = GameSession.upgradeManager.onAntKilled(clickedAnt, ants)
+        // 🔥 1. Upgrade sonucu al (BURASI)
+        val chainResult = GameSession.upgradeManager
+            .onAntKilled(clickedAnt, ants)
 
-        val killQueue = (listOf(clickedAnt) + extraKills)
+        // 🔥 2. Animasyon için UI state set et
+        viewModelScope.launch {
+            chainEffect = emptyList()
+
+            chainResult.chainPairs.forEachIndexed { index, pair ->
+                delay(index * 30L)
+                chainEffect = chainEffect + pair
+            }
+
+            delay(150)
+            chainEffect = emptyList()
+        }
+
+        // 🔥 3. Tüm öldürülecek antlar
+        val killQueue = (listOf(clickedAnt) + chainResult.killedAnts)
             .distinctBy { it.id }
 
         var currentAnts = ants
         var totalScore = 0
 
         killQueue.forEach { antToKill ->
+
+            val stillExists = currentAnts.any { it.id == antToKill.id }
+            if (!stillExists) return@forEach
 
             val result = handleAntClick(
                 ants = currentAnts,
@@ -87,17 +120,11 @@ class GameViewModel : ViewModel() {
 
         controlScoreForLevel()
 
-        /*val result = handleAntClick(
-            ants = ants,
-            clicked = clickedAnt,
-            screenWidth = screenWidth,
-            screenHeight = screenHeight,
-            nextId = { nextAntId++ }
-        )
-        ants = result.ants
-
-        score += result.gainedScore
-        controlScoreForLevel()*/
+        // 🔥 4. animasyonu temizle (çok önemli)
+        viewModelScope.launch {
+            delay(150)
+            chainEffect = emptyList()
+        }
     }
 
     fun moveAnt(
@@ -282,5 +309,50 @@ class GameViewModel : ViewModel() {
     fun controlScoreForLevel() {
         if (score >= currentLevel.targetScore)
             isLevelDone = true
+    }
+
+    fun generateLightning(
+        start: Offset,
+        end: Offset,
+        displacement: Float = 40f,
+        detail: Int = 4
+    ): List<List<Offset>> {
+
+        fun subdivide(a: Offset, b: Offset, dis: Float): List<Offset> {
+            if (dis < 5f) return listOf(a, b)
+
+            val mid = Offset(
+                (a.x + b.x) / 2,
+                (a.y + b.y) / 2
+            )
+
+            val offset = Offset(
+                ((Math.random() - 0.5) * dis).toFloat(),
+                ((Math.random() - 0.5) * dis).toFloat()
+            )
+
+            val midDisplaced = mid + offset
+
+            return subdivide(a, midDisplaced, dis / 2) +
+                    subdivide(midDisplaced, b, dis / 2).drop(1)
+        }
+
+        val main = subdivide(start, end, displacement)
+
+        // 🔥 branch oluştur
+        val branches = mutableListOf<List<Offset>>()
+
+        main.forEachIndexed { i, point ->
+            if (i > 2 && Math.random() < 0.3) {
+                val branchEnd = Offset(
+                    point.x + ((Math.random() - 0.5) * 100).toFloat(),
+                    point.y + ((Math.random() - 0.5) * 100).toFloat()
+                )
+
+                branches.add(subdivide(point, branchEnd, displacement / 2))
+            }
+        }
+
+        return listOf(main) + branches
     }
 }

@@ -8,5 +8,5 @@ interface Upgrade {
     fun onAntKilled(
         killedAnt: Ant,
         ants: List<Ant>
-    ): List<Ant>
+    ): ChainResult
 }
