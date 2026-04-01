@@ -1,10 +1,10 @@
 package com.kroq.antsurvivalgame.ui.game
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kroq.antsurvivalgame.data.GameSession
@@ -27,10 +27,7 @@ class GameViewModel : ViewModel() {
     var ants by mutableStateOf<List<Ant>>(emptyList())
         private set
 
-    var score by mutableStateOf(0)
-        private set
-
-    var hasQueen by mutableStateOf(false)
+    var score by mutableIntStateOf(0)
         private set
 
     var currentLevel by mutableStateOf(LEVELS.first())
@@ -41,7 +38,6 @@ class GameViewModel : ViewModel() {
 
     var chainEffect by mutableStateOf<List<Pair<Ant, Ant>>>(emptyList())
         private set
-
 
     private var nextAntId = 0
 
@@ -315,7 +311,6 @@ class GameViewModel : ViewModel() {
         start: Offset,
         end: Offset,
         displacement: Float = 40f,
-        detail: Int = 4
     ): List<List<Offset>> {
 
         fun subdivide(a: Offset, b: Offset, dis: Float): List<Offset> {
