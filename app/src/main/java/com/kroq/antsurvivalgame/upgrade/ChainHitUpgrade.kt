@@ -9,19 +9,19 @@ class ChainHitUpgrade(
     override val type = UpgradeType.CHAIN_HIT
 
     override fun onAntKilled(
-        killedAnt: Ant,
+        affectedAnts: Ant,
         ants: List<Ant>
     ): ChainResult {
 
         val killed = mutableListOf<Ant>()
         val pairs = mutableListOf<Pair<Ant, Ant>>()
 
-        var current = killedAnt
+        var current = affectedAnts
 
         repeat(level) {
 
             val next = ants
-                .filter { it !in killed && it.id != killedAnt.id }
+                .filter { it !in killed && it.id != affectedAnts.id }
                 .minByOrNull { distance(it, current) }
 
             next?.let {

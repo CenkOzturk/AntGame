@@ -6,7 +6,7 @@ interface Upgrade {
     val type: UpgradeType
 
     fun onAntKilled(
-        killedAnt: Ant,
+        affectedAnts: Ant,
         ants: List<Ant>
     ): ChainResult
 }

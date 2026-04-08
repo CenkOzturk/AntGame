@@ -76,9 +76,9 @@ fun UpgradePopup(
                     UpgradeButton(
                         modifier = Modifier
                             .weight(1f),
-                        title = "Double Score",
-                        description = "Kills give 2x score",
-                        onClick = { onUpgradeSelected(UpgradeType.DOUBLE_SCORE) }
+                        title = "Double Damage",
+                        description = "Hits x2 damage",
+                        onClick = { onUpgradeSelected(UpgradeType.DOUBLE_DAMAGE) }
                     )
                 }
             }

@@ -70,11 +70,28 @@ class GameViewModel : ViewModel() {
             hypot(x - ant.x, y - ant.y) <= ant.type.radius
         } ?: return
 
-        // 🔥 1. Upgrade sonucu al (BURASI)
+// 🔥 1. DAMAGE UYGULA
+        val damage = GameSession.upgradeManager.getDamage()
+
+        val updatedAnt = clickedAnt.copy(
+            hp = clickedAnt.hp - damage
+        )
+
+// 🟡 Ölmediyse sadece HP güncelle ve çık
+        if (updatedAnt.hp > 0) {
+            ants = ants.map {
+                if (it.id == clickedAnt.id) updatedAnt else it
+            }
+            return
+        }
+
+// 🔴 BURAYA GELDİYSE ANT ÖLDÜ
+
+// 🔥 2. Upgrade tetikle
         val chainResult = GameSession.upgradeManager
             .onAntKilled(clickedAnt, ants)
 
-        // 🔥 2. Animasyon için UI state set et
+// 🔥 3. Animasyon
         viewModelScope.launch {
             chainEffect = emptyList()
 
@@ -83,32 +100,43 @@ class GameViewModel : ViewModel() {
                 chainEffect = chainEffect + pair
             }
 
+            SoundManager.playChain()
+
             delay(150)
             chainEffect = emptyList()
         }
 
-        // 🔥 3. Tüm öldürülecek antlar
-        val killQueue = (listOf(clickedAnt) + chainResult.killedAnts)
-            .distinctBy { it.id }
-
+// 🔥 4. Kill queue
         var currentAnts = ants
         var totalScore = 0
 
-        killQueue.forEach { antToKill ->
+        val affectedAnts = (listOf(clickedAnt) + chainResult.affectedAnts)
+            .distinctBy { it.id }
 
-            val stillExists = currentAnts.any { it.id == antToKill.id }
-            if (!stillExists) return@forEach
+        affectedAnts.forEach { ant ->
 
-            val result = handleAntClick(
-                ants = currentAnts,
-                clicked = antToKill,
-                screenWidth = screenWidth,
-                screenHeight = screenHeight,
-                nextId = { nextAntId++ }
-            )
+            val existing = currentAnts.find { it.id == ant.id } ?: return@forEach
 
-            currentAnts = result.ants
-            totalScore += result.gainedScore
+            val newHp = existing.hp - damage
+
+            if (newHp > 0) {
+                // sadece damage alır
+                currentAnts = currentAnts.map {
+                    if (it.id == existing.id) it.copy(hp = newHp) else it
+                }
+            } else {
+                // ölür → eski sistem çalışır
+                val result = handleAntClick(
+                    ants = currentAnts,
+                    clicked = existing,
+                    screenWidth = screenWidth,
+                    screenHeight = screenHeight,
+                    nextId = { nextAntId++ }
+                )
+
+                currentAnts = result.ants
+                totalScore += result.gainedScore
+            }
         }
 
         ants = currentAnts
@@ -116,7 +144,6 @@ class GameViewModel : ViewModel() {
 
         controlScoreForLevel()
 
-        // 🔥 4. animasyonu temizle (çok önemli)
         viewModelScope.launch {
             delay(150)
             chainEffect = emptyList()
@@ -232,7 +259,8 @@ class GameViewModel : ViewModel() {
         screenHeight: Float,
         nextId: () -> Int
     ): ClickResult {
-        val updatedHealth = clicked.hp - 1
+        val damage = GameSession.upgradeManager.getDamage()
+        val updatedHealth = clicked.hp - damage
 
         // 🟡 ANT HÂLÂ YAŞIYORSA
         if (updatedHealth > 0) {

@@ -17,8 +17,13 @@ class UpgradeManager {
                 }
             }
 
-            UpgradeType.DOUBLE_SCORE -> {
-
+            UpgradeType.DOUBLE_DAMAGE -> {
+                val existing = upgrades[type] as? DoubleDamageUpgrade
+                if (existing != null) {
+                    existing.levelUp()
+                } else {
+                    upgrades[type] = DoubleDamageUpgrade().apply { levelUp() }
+                }
             }
 
             UpgradeType.ADD_SOLDIER -> {
@@ -27,8 +32,13 @@ class UpgradeManager {
         }
     }
 
+    fun getDamage(): Int {
+        val damageUpgrade = upgrades[UpgradeType.DOUBLE_DAMAGE] as? DoubleDamageUpgrade
+        return damageUpgrade?.getDamage() ?: 1
+    }
+
     fun onAntKilled(
-        killedAnt: Ant,
+        affectedAnts: Ant,
         ants: List<Ant>
     ): ChainResult {
 
@@ -36,9 +46,9 @@ class UpgradeManager {
         val allPairs = mutableListOf<Pair<Ant, Ant>>()
 
         upgrades.values.forEach { upgrade ->
-            val result = upgrade.onAntKilled(killedAnt, ants)
+            val result = upgrade.onAntKilled(affectedAnts, ants)
 
-            allKills += result.killedAnts
+            allKills += result.affectedAnts
             allPairs += result.chainPairs
         }
 
