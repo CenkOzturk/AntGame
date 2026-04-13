@@ -9,6 +9,7 @@ import com.kroq.antsurvivalgame.ui.game.GameScreen
 import com.kroq.antsurvivalgame.ui.levelComplete.LevelCompleteScreen
 import com.kroq.antsurvivalgame.ui.menu.MainMenuScreen
 import com.kroq.antsurvivalgame.ui.splash.SplashScreen
+import com.kroq.antsurvivalgame.upgrade.Upgrade
 
 @Composable
 fun AppNavigation() {
@@ -52,6 +53,10 @@ fun AppNavigation() {
                     navController.navigate(Screen.Game.route) {
                         launchSingleTop = true
                     }
+                },
+                onUpgradeSelected = {
+                    GameSession.addUpgrade(it)
+                    GameSession.nextLevel()
                 }
             )
         }

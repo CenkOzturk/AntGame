@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,14 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kroq.antsurvivalgame.data.GameSession
 import com.kroq.antsurvivalgame.ui.AntView
 import com.kroq.antsurvivalgame.ui.effects.FlashOverlay
 import com.kroq.antsurvivalgame.ui.effects.LightningCanvas
 import com.kroq.antsurvivalgame.ui.effects.rememberGameEffects
-import com.kroq.antsurvivalgame.ui.upgrade.UpgradePopup
-import com.kroq.antsurvivalgame.utils.Utils
-import kotlinx.coroutines.delay
 
 @Composable
 fun GameScreen(
@@ -54,8 +49,7 @@ fun GameScreen(
 
         GameOverlay(
             score = viewModel.score,
-            target = viewModel.currentLevel.targetScore,
-            onUpgradeClick = { showUpgradePopup = true }
+            target = viewModel.currentLevel.targetScore
         )
 
         LightningCanvas(
@@ -73,16 +67,6 @@ fun GameScreen(
             screenWidth = screenWidth,
             screenHeight = screenHeight,
             onLevelComplete = onLevelComplete
-        )
-    }
-
-    if (showUpgradePopup) {
-        UpgradePopup(
-            onUpgradeSelected = {
-                GameSession.addUpgrade(it)
-                Utils.ToastUtil.show(it.name)
-                showUpgradePopup = false
-            }
         )
     }
 }

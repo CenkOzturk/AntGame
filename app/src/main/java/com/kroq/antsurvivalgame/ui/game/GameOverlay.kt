@@ -16,8 +16,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun GameOverlay(
     score: Int,
-    target: Int,
-    onUpgradeClick: () -> Unit
+    target: Int
 ) {
     Box(Modifier.fillMaxSize()) {
 
@@ -30,12 +29,5 @@ fun GameOverlay(
                 .align(Alignment.TopCenter)
                 .padding(top = 32.dp)
         )
-
-        Button(
-            onClick = onUpgradeClick,
-            modifier = Modifier.align(Alignment.TopStart)
-        ) {
-            Text("Upgrade")
-        }
     }
 }
